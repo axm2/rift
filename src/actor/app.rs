@@ -32,7 +32,7 @@ pub use crate::sys::app::{AppInfo, WindowInfo, pid_t};
 use crate::sys::axuielement::{
     AX_STANDARD_WINDOW_SUBROLE, AX_WINDOW_ROLE, AXUIElement, Error as AxError,
 };
-use crate::sys::enhanced_ui::{with_enhanced_ui_disabled, with_system_enhanced_ui_disabled};
+use crate::sys::enhanced_ui::with_enhanced_ui_disabled;
 use crate::sys::event;
 use crate::sys::executor::Executor;
 use crate::sys::observer::Observer;
@@ -546,7 +546,7 @@ impl State {
                 };
 
                 if eui {
-                    let _ = with_enhanced_ui_disabled(&elem, || elem.set_position(pos));
+                    let _ = with_enhanced_ui_disabled(&self.app, || elem.set_position(pos));
                 } else {
                     let _ = elem.set_position(pos);
                 };
@@ -583,7 +583,7 @@ impl State {
                 };
 
                 if eui {
-                    with_enhanced_ui_disabled(&elem, || {
+                    with_enhanced_ui_disabled(&self.app, || {
                         let _ = elem.set_size(desired.size);
                         let _ = elem.set_position(desired.origin);
                         let _ = elem.set_size(desired.size);
@@ -610,7 +610,7 @@ impl State {
             }
             &mut Request::SetBatchWindowFrame(ref mut frames, txid) => {
                 unsafe { SLSDisableUpdate(*G_CONNECTION) };
-                let result = with_system_enhanced_ui_disabled(|| -> Result<(), AxError> {
+                let result = with_enhanced_ui_disabled(&self.app, || -> Result<(), AxError> {
                     for (wid, desired) in frames.iter() {
                         let elem = match self.window_mut(*wid) {
                             Ok(window) => {
