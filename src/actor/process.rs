@@ -110,7 +110,5 @@ impl ProcessActor {
         }
     }
 
-    pub async fn run(self) {
-        future::pending::<()>().await;
-    }
+    pub async fn run(self) { future::pending::<()>().await; }
 }

@@ -33,21 +33,13 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn new(r: f64, g: f64, b: f64, a: f64) -> Self {
-        Self { r, g, b, a }
-    }
+    pub fn new(r: f64, g: f64, b: f64, a: f64) -> Self { Self { r, g, b, a } }
 
-    pub fn blue() -> Self {
-        Self::new(0.0, 0.5, 1.0, 1.0)
-    }
+    pub fn blue() -> Self { Self::new(0.0, 0.5, 1.0, 1.0) }
 
-    pub fn light_gray() -> Self {
-        Self::new(0.8, 0.8, 0.8, 1.0)
-    }
+    pub fn light_gray() -> Self { Self::new(0.8, 0.8, 0.8, 1.0) }
 
-    pub fn gray() -> Self {
-        Self::new(0.6, 0.6, 0.6, 1.0)
-    }
+    pub fn gray() -> Self { Self::new(0.6, 0.6, 0.6, 1.0) }
 
     pub fn to_nscolor(&self) -> Retained<objc2_app_kit::NSColor> {
         objc2_app_kit::NSColor::colorWithRed_green_blue_alpha(self.r, self.g, self.b, self.a)
@@ -209,17 +201,13 @@ impl GroupIndicatorWindow {
         Ok(())
     }
 
-    pub fn recommended_thickness(&self) -> f64 {
-        self.state.borrow().config.bar_thickness
-    }
+    pub fn recommended_thickness(&self) -> f64 { self.state.borrow().config.bar_thickness }
 
     pub fn set_click_callback(&self, callback: SegmentClickCallback) {
         self.state.borrow_mut().click_callback = Some(callback);
     }
 
-    pub fn group_data(&self) -> Option<GroupDisplayData> {
-        self.state.borrow().group_data.clone()
-    }
+    pub fn group_data(&self) -> Option<GroupDisplayData> { self.state.borrow().group_data.clone() }
 
     pub fn click_segment(&self, segment_index: usize) -> Result<(), CgsWindowError> {
         let Some(group_data) = self.group_data() else {

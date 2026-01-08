@@ -24,25 +24,15 @@ impl Modifiers {
     pub const SHIFT_LEFT: Modifiers = Modifiers(0b0000_0001);
     pub const SHIFT_RIGHT: Modifiers = Modifiers(0b0000_0010);
 
-    pub fn empty() -> Self {
-        Modifiers(0)
-    }
+    pub fn empty() -> Self { Modifiers(0) }
 
-    pub fn contains(&self, other: Modifiers) -> bool {
-        (self.0 & other.0) == other.0
-    }
+    pub fn contains(&self, other: Modifiers) -> bool { (self.0 & other.0) == other.0 }
 
-    pub fn intersects(&self, other: Modifiers) -> bool {
-        (self.0 & other.0) != 0
-    }
+    pub fn intersects(&self, other: Modifiers) -> bool { (self.0 & other.0) != 0 }
 
-    pub fn insert(&mut self, other: Modifiers) {
-        self.0 |= other.0;
-    }
+    pub fn insert(&mut self, other: Modifiers) { self.0 |= other.0; }
 
-    pub fn remove(&mut self, other: Modifiers) {
-        self.0 &= !other.0;
-    }
+    pub fn remove(&mut self, other: Modifiers) { self.0 &= !other.0; }
 
     pub fn has_generic_modifiers(&self) -> bool {
         let has_both_shift =
@@ -479,9 +469,7 @@ pub struct Hotkey {
 }
 
 impl Hotkey {
-    pub fn new(modifiers: Modifiers, key_code: KeyCode) -> Self {
-        Self { modifiers, key_code }
-    }
+    pub fn new(modifiers: Modifiers, key_code: KeyCode) -> Self { Self { modifiers, key_code } }
 }
 
 impl fmt::Display for Hotkey {
@@ -523,9 +511,7 @@ impl FromStr for Hotkey {
 
 impl<'de> Deserialize<'de> for Hotkey {
     fn deserialize<D>(deserializer: D) -> Result<Hotkey, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
+    where D: serde::Deserializer<'de> {
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum HotkeyRepr {
@@ -639,9 +625,7 @@ pub fn modifier_flag_for_key(key_code: KeyCode) -> Option<CGEventFlags> {
     }
 }
 
-pub fn is_modifier_key(key_code: KeyCode) -> bool {
-    modifier_flag_for_key(key_code).is_some()
-}
+pub fn is_modifier_key(key_code: KeyCode) -> bool { modifier_flag_for_key(key_code).is_some() }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HotkeySpec {
@@ -651,9 +635,7 @@ pub enum HotkeySpec {
 
 impl<'de> serde::de::Deserialize<'de> for HotkeySpec {
     fn deserialize<D>(deserializer: D) -> Result<HotkeySpec, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
+    where D: serde::Deserializer<'de> {
         #[derive(serde::Deserialize)]
         #[serde(untagged)]
         enum HotkeyRepr {

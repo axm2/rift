@@ -52,9 +52,7 @@ pub struct RiftMachClient {
 }
 
 impl RiftMachClient {
-    pub fn connect() -> Result<Self, String> {
-        Ok(RiftMachClient { connected: true })
-    }
+    pub fn connect() -> Result<Self, String> { Ok(RiftMachClient { connected: true }) }
 
     pub fn send_request(&self, request: &RiftRequest) -> Result<RiftResponse, String> {
         if !self.connected {

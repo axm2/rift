@@ -32,7 +32,7 @@ pub use crate::sys::app::{AppInfo, WindowInfo, pid_t};
 use crate::sys::axuielement::{
     AX_STANDARD_WINDOW_SUBROLE, AX_WINDOW_ROLE, AXUIElement, Error as AxError,
 };
-use crate::sys::enhanced_ui::{with_enhanced_ui_disabled, with_system_enhanced_ui_disabled};
+use crate::sys::enhanced_ui::with_enhanced_ui_disabled;
 use crate::sys::event;
 use crate::sys::executor::Executor;
 use crate::sys::observer::Observer;
@@ -67,9 +67,7 @@ pub struct WindowId {
 
 impl serde::ser::Serialize for WindowId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
+    where S: serde::ser::Serializer {
         use serde::ser::SerializeStruct;
         let mut s = serializer.serialize_struct("WindowId", 2)?;
         s.serialize_field("pid", &self.pid)?;
@@ -80,9 +78,7 @@ impl serde::ser::Serialize for WindowId {
 
 impl<'de> serde::de::Deserialize<'de> for WindowId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
+    where D: serde::de::Deserializer<'de> {
         struct WindowIdVisitor;
         impl<'de> serde::de::Visitor<'de> for WindowIdVisitor {
             type Value = WindowId;
@@ -94,17 +90,13 @@ impl<'de> serde::de::Deserialize<'de> for WindowId {
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
+            where E: serde::de::Error {
                 WindowId::from_debug_string(v)
                     .ok_or_else(|| E::custom("invalid WindowId debug string"))
             }
 
             fn visit_seq<A>(self, mut seq: A) -> Result<WindowId, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
+            where A: serde::de::SeqAccess<'de> {
                 let pid: pid_t = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
@@ -119,9 +111,7 @@ impl<'de> serde::de::Deserialize<'de> for WindowId {
             }
 
             fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
-            where
-                M: serde::de::MapAccess<'de>,
-            {
+            where M: serde::de::MapAccess<'de> {
                 let mut pid: Option<pid_t> = None;
                 let mut idx: Option<u32> = None;
 
@@ -180,9 +170,7 @@ impl WindowId {
         })
     }
 
-    pub fn to_debug_string(&self) -> String {
-        format!("{:?}", self)
-    }
+    pub fn to_debug_string(&self) -> String { format!("{:?}", self) }
 }
 
 #[derive(Clone)]
@@ -196,9 +184,7 @@ impl AppThreadHandle {
         this
     }
 
-    pub fn send(&self, req: Request) -> anyhow::Result<()> {
-        Ok(self.requests_tx.send(req))
-    }
+    pub fn send(&self, req: Request) -> anyhow::Result<()> { Ok(self.requests_tx.send(req)) }
 }
 
 impl Debug for AppThreadHandle {
@@ -624,7 +610,7 @@ impl State {
             }
             &mut Request::SetBatchWindowFrame(ref mut frames, txid) => {
                 unsafe { SLSDisableUpdate(*G_CONNECTION) };
-                let result = with_system_enhanced_ui_disabled(|| -> Result<(), AxError> {
+                let result = with_enhanced_ui_disabled(&self.app, || -> Result<(), AxError> {
                     for (wid, desired) in frames.iter() {
                         let elem = match self.window_mut(*wid) {
                             Ok(window) => {
@@ -829,9 +815,7 @@ enum RaiseError {
 }
 
 impl From<AxError> for RaiseError {
-    fn from(value: AxError) -> Self {
-        Self::AXError(value)
-    }
+    fn from(value: AxError) -> Self { Self::AXError(value) }
 }
 
 impl State {
@@ -1165,15 +1149,12 @@ impl State {
         let hidden_by_app = self.is_hidden;
         let last_seen_txid = self.txid_from_store(window_server_id).unwrap_or_default();
 
-        let old = self.windows.insert(
-            wid,
-            WindowState {
-                elem,
-                last_seen_txid,
-                hidden_by_app,
-                window_server_id,
-            },
-        );
+        let old = self.windows.insert(wid, WindowState {
+            elem,
+            last_seen_txid,
+            hidden_by_app,
+            window_server_id,
+        });
         debug_assert!(old.is_none(), "Duplicate window id {wid:?}");
         if hidden_by_app {
             self.send_event(Event::WindowMinimized(wid));
@@ -1240,9 +1221,7 @@ impl State {
         }
     }
 
-    fn send_event(&self, event: Event) {
-        self.events_tx.send(event);
-    }
+    fn send_event(&self, event: Event) { self.events_tx.send(event); }
 
     fn window(&self, wid: WindowId) -> Result<&WindowState, AxError> {
         assert_eq!(wid.pid, self.pid);

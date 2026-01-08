@@ -45,9 +45,7 @@ impl AppManager {
     }
 
     pub fn mark_wsids_recent<I>(&mut self, wsids: I)
-    where
-        I: IntoIterator<Item = crate::sys::window_server::WindowServerId>,
-    {
+    where I: IntoIterator<Item = crate::sys::window_server::WindowServerId> {
         let now = std::time::Instant::now();
         for ws in wsids {
             self.app_rules_recent_targets.insert(ws, now);
@@ -100,9 +98,7 @@ impl SpaceManager {
         self.screens.iter().filter_map(|screen| self.space_for_screen(screen))
     }
 
-    pub fn first_known_space(&self) -> Option<SpaceId> {
-        self.iter_known_spaces().next()
-    }
+    pub fn first_known_space(&self) -> Option<SpaceId> { self.iter_known_spaces().next() }
 }
 
 /// Manages drag operations and window swapping
@@ -113,21 +109,13 @@ pub struct DragManager {
 }
 
 impl DragManager {
-    pub fn reset(&mut self) {
-        self.drag_swap_manager.reset();
-    }
+    pub fn reset(&mut self) { self.drag_swap_manager.reset(); }
 
-    pub fn last_target(&self) -> Option<WindowId> {
-        self.drag_swap_manager.last_target()
-    }
+    pub fn last_target(&self) -> Option<WindowId> { self.drag_swap_manager.last_target() }
 
-    pub fn dragged(&self) -> Option<WindowId> {
-        self.drag_swap_manager.dragged()
-    }
+    pub fn dragged(&self) -> Option<WindowId> { self.drag_swap_manager.dragged() }
 
-    pub fn origin_frame(&self) -> Option<CGRect> {
-        self.drag_swap_manager.origin_frame()
-    }
+    pub fn origin_frame(&self) -> Option<CGRect> { self.drag_swap_manager.origin_frame() }
 
     pub fn update_config(&mut self, config: WindowSnappingSettings) {
         self.drag_swap_manager.update_config(config);
