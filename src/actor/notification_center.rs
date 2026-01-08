@@ -235,7 +235,9 @@ impl NotificationCenterInner {
         }
     }
 
-    fn send_event(&self, event: WmEvent) { _ = self.ivars().events_tx.send(event); }
+    fn send_event(&self, event: WmEvent) {
+        _ = self.ivars().events_tx.send(event);
+    }
 
     fn running_application(
         &self,

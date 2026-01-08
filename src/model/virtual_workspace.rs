@@ -71,11 +71,17 @@ impl VirtualWorkspace {
         }
     }
 
-    pub fn contains_window(&self, window_id: WindowId) -> bool { self.windows.contains(&window_id) }
+    pub fn contains_window(&self, window_id: WindowId) -> bool {
+        self.windows.contains(&window_id)
+    }
 
-    pub fn windows(&self) -> impl Iterator<Item = WindowId> + '_ { self.windows.iter().copied() }
+    pub fn windows(&self) -> impl Iterator<Item = WindowId> + '_ {
+        self.windows.iter().copied()
+    }
 
-    pub fn add_window(&mut self, window_id: WindowId) { self.windows.insert(window_id); }
+    pub fn add_window(&mut self, window_id: WindowId) {
+        self.windows.insert(window_id);
+    }
 
     pub fn remove_window(&mut self, window_id: WindowId) -> bool {
         if self.last_focused == Some(window_id) {
@@ -88,9 +94,13 @@ impl VirtualWorkspace {
         self.last_focused = window_id;
     }
 
-    pub fn last_focused(&self) -> Option<WindowId> { self.last_focused }
+    pub fn last_focused(&self) -> Option<WindowId> {
+        self.last_focused
+    }
 
-    pub fn window_count(&self) -> usize { self.windows.len() }
+    pub fn window_count(&self) -> usize {
+        self.windows.len()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,7 +110,9 @@ pub enum HideCorner {
 }
 
 impl Default for HideCorner {
-    fn default() -> Self { HideCorner::BottomRight }
+    fn default() -> Self {
+        HideCorner::BottomRight
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -133,11 +145,15 @@ pub struct VirtualWorkspaceManager {
 }
 
 impl Default for VirtualWorkspaceManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl VirtualWorkspaceManager {
-    pub fn new() -> Self { Self::new_with_config(&VirtualWorkspaceSettings::default()) }
+    pub fn new() -> Self {
+        Self::new_with_config(&VirtualWorkspaceSettings::default())
+    }
 
     pub fn new_with_rules(app_rules: Vec<AppWorkspaceRule>) -> Self {
         let mut cfg = VirtualWorkspaceSettings::default();
@@ -365,7 +381,9 @@ impl VirtualWorkspaceManager {
         })
     }
 
-    pub fn workspace_auto_back_and_forth(&self) -> bool { self.workspace_auto_back_and_forth }
+    pub fn workspace_auto_back_and_forth(&self) -> bool {
+        self.workspace_auto_back_and_forth
+    }
 
     pub fn set_active_workspace(
         &mut self,
@@ -1267,9 +1285,13 @@ impl FloatingWindowPositions {
         self.positions.remove(&window_id)
     }
 
-    pub fn windows(&self) -> impl Iterator<Item = WindowId> + '_ { self.positions.keys().copied() }
+    pub fn windows(&self) -> impl Iterator<Item = WindowId> + '_ {
+        self.positions.keys().copied()
+    }
 
-    pub fn clear(&mut self) { self.positions.clear(); }
+    pub fn clear(&mut self) {
+        self.positions.clear();
+    }
 
     pub fn contains_window(&self, window_id: WindowId) -> bool {
         self.positions.contains_key(&window_id)
