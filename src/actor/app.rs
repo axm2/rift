@@ -609,48 +609,56 @@ impl State {
                 ));
             }
             &mut Request::SetBatchWindowFrame(ref mut frames, txid) => {
-                unsafe { SLSDisableUpdate(*G_CONNECTION) };
-                let result = with_enhanced_ui_disabled(&self.app, || -> Result<(), AxError> {
-                    for (wid, desired) in frames.iter() {
-                        let elem = match self.window_mut(*wid) {
-                            Ok(window) => {
-                                window.last_seen_txid = txid;
-                                window.elem.clone()
-                            }
-                            Err(err) => match err {
-                                AxError::Ax(code) => {
-                                    if self.handle_ax_error(*wid, &code) {
-                                        continue;
-                                    }
-                                    return Err(AxError::Ax(code));
+                // Collect elements and update transaction IDs first
+                let mut elements_to_update = Vec::new();
+                for (wid, desired) in frames.iter() {
+                    let elem = match self.window_mut(*wid) {
+                        Ok(window) => {
+                            window.last_seen_txid = txid;
+                            window.elem.clone()
+                        }
+                        Err(err) => match err {
+                            AxError::Ax(code) => {
+                                if self.handle_ax_error(*wid, &code) {
+                                    continue;
                                 }
-                                AxError::NotFound => continue,
-                            },
-                        };
+                                return Err(AxError::Ax(code));
+                            }
+                            AxError::NotFound => continue,
+                        },
+                    };
+                    elements_to_update.push((*wid, elem, *desired));
+                }
 
+                unsafe { SLSDisableUpdate(*G_CONNECTION) };
+                let result = with_enhanced_ui_disabled(&self.app, || {
+                    for (_, elem, desired) in &elements_to_update {
                         let _ = elem.set_size(desired.size);
                         let _ = elem.set_position(desired.origin);
                         let _ = elem.set_size(desired.size);
-
-                        let frame = match self.handle_ax_result(*wid, elem.frame())? {
-                            Some(frame) => frame,
-                            None => continue,
-                        };
-
-                        self.send_event(Event::WindowFrameChanged(
-                            *wid,
-                            frame,
-                            Some(txid),
-                            Requested(true),
-                            None,
-                        ));
                     }
-                    Ok(())
                 });
-                unsafe { SLSReenableUpdate(*G_CONNECTION) };
-                if let Err(err) = result {
-                    return Err(err);
+
+                // Read frames and send events after the batch update
+                for (wid, elem, _) in elements_to_update {
+                    let frame = match self.handle_ax_result(wid, elem.frame()) {
+                        Ok(Some(frame)) => frame,
+                        Ok(None) => continue,
+                        Err(err) => {
+                            unsafe { SLSReenableUpdate(*G_CONNECTION) };
+                            return Err(err);
+                        }
+                    };
+
+                    self.send_event(Event::WindowFrameChanged(
+                        wid,
+                        frame,
+                        Some(txid),
+                        Requested(true),
+                        None,
+                    ));
                 }
+                unsafe { SLSReenableUpdate(*G_CONNECTION) };
             }
             &mut Request::BeginWindowAnimation(wid) => {
                 let window = self.window(wid)?;
