@@ -1,7 +1,7 @@
 use tracing::{trace, warn};
 
-use crate::actor::app::{AppInfo, WindowId, WindowInfo, pid_t};
-use crate::actor::reactor::{Event, LayoutEvent, Reactor, WindowState, utils};
+use crate::actor::app::{pid_t, AppInfo, WindowId, WindowInfo};
+use crate::actor::reactor::{utils, Event, LayoutEvent, Reactor, WindowState};
 use crate::common::collections::{BTreeMap, HashSet};
 use crate::model::virtual_workspace::AppRuleResult;
 use crate::sys::screen::SpaceId;
@@ -332,9 +332,20 @@ impl WindowDiscoveryHandler {
             return;
         }
 
+        tracing::debug!(
+            ?pid,
+            known_visible_count = known_visible.len(),
+            "emit_layout_events called"
+        );
+
         let mut app_windows: BTreeMap<SpaceId, Vec<WindowId>> = BTreeMap::new();
         let mut included: HashSet<WindowId> = HashSet::default();
 
+        tracing::debug!(
+            ?pid,
+            visible_windows_count = reactor.window_manager.visible_windows.len(),
+            "First loop: checking visible_windows"
+        );
         // Collect windows from visible window server IDs
         for wid in reactor
             .window_manager
@@ -354,6 +365,11 @@ impl WindowDiscoveryHandler {
 
         // If we have no visible WSIDs (e.g., SpaceChanged provided empty ws_info),
         // fall back to the app-reported known_visible list for this pid.
+        tracing::debug!(
+            ?pid,
+            known_visible_count = known_visible.len(),
+            "Second loop: checking known_visible"
+        );
         for wid in known_visible.iter().copied().filter(|wid| wid.pid == pid) {
             if included.contains(&wid) || !reactor.window_is_standard(wid) {
                 continue;
@@ -444,22 +460,17 @@ impl WindowDiscoveryHandler {
                 Option<String>,
             )> = windows_for_space
                 .iter()
-                .filter(|&&wid| {
-                    reactor
-                        .window_manager
-                        .windows
-                        .get(&wid)
-                        .map(|window| window.is_effectively_manageable())
-                        .unwrap_or(false)
-                })
-                .map(|&wid| {
-                    let title_opt =
-                        reactor.window_manager.windows.get(&wid).map(|w| w.title.clone());
-                    let ax_role =
-                        reactor.window_manager.windows.get(&wid).and_then(|w| w.ax_role.clone());
-                    let ax_subrole =
-                        reactor.window_manager.windows.get(&wid).and_then(|w| w.ax_subrole.clone());
-                    (wid, title_opt, ax_role, ax_subrole)
+                .filter_map(|&wid| {
+                    let window = reactor.window_manager.windows.get(&wid)?;
+                    if !window.is_effectively_manageable() {
+                        return None;
+                    }
+                    Some((
+                        wid,
+                        Some(window.title.clone()),
+                        window.ax_role.clone(),
+                        window.ax_subrole.clone(),
+                    ))
                 })
                 .collect();
 
