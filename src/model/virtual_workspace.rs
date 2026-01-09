@@ -130,6 +130,8 @@ pub struct VirtualWorkspaceManager {
     default_workspace: usize,
     #[serde(skip)]
     workspace_auto_back_and_forth: bool,
+    #[serde(skip)]
+    stay_on_empty_workspace: bool,
 }
 
 impl Default for VirtualWorkspaceManager {
@@ -166,6 +168,7 @@ impl VirtualWorkspaceManager {
             default_workspace_names: config.workspace_names.clone(),
             default_workspace,
             workspace_auto_back_and_forth: config.workspace_auto_back_and_forth,
+            stay_on_empty_workspace: config.stay_on_empty_workspace,
         };
 
         manager.rebuild_app_rule_regex_cache();
@@ -177,6 +180,7 @@ impl VirtualWorkspaceManager {
         self.default_workspace_count = config.default_workspace_count;
         self.default_workspace_names = config.workspace_names.clone();
         self.workspace_auto_back_and_forth = config.workspace_auto_back_and_forth;
+        self.stay_on_empty_workspace = config.stay_on_empty_workspace;
         self.rebuild_app_rule_regex_cache();
 
         let target_count = self.default_workspace_count.max(1).min(self.max_workspaces);
@@ -366,6 +370,8 @@ impl VirtualWorkspaceManager {
     }
 
     pub fn workspace_auto_back_and_forth(&self) -> bool { self.workspace_auto_back_and_forth }
+
+    pub fn stay_on_empty_workspace(&self) -> bool { self.stay_on_empty_workspace }
 
     pub fn set_active_workspace(
         &mut self,
@@ -1798,5 +1804,31 @@ mod tests {
                 || bw2_updated_assignment.workspace_id == expected_updated
         );
         assert!(bw2_updated_assignment.floating);
+    }
+
+    #[test]
+    fn test_stay_on_empty_workspace_setting() {
+        // Test with stay_on_empty_workspace = false (default)
+        let settings_false = VirtualWorkspaceSettings::default();
+        assert_eq!(settings_false.stay_on_empty_workspace, false);
+        
+        let manager_false = VirtualWorkspaceManager::new_with_config(&settings_false);
+        assert_eq!(manager_false.stay_on_empty_workspace(), false);
+
+        // Test with stay_on_empty_workspace = true
+        let mut settings_true = VirtualWorkspaceSettings::default();
+        settings_true.stay_on_empty_workspace = true;
+        
+        let manager_true = VirtualWorkspaceManager::new_with_config(&settings_true);
+        assert_eq!(manager_true.stay_on_empty_workspace(), true);
+
+        // Test that update_settings propagates the setting correctly
+        let mut manager = VirtualWorkspaceManager::new();
+        assert_eq!(manager.stay_on_empty_workspace(), false);
+        
+        let mut updated_settings = VirtualWorkspaceSettings::default();
+        updated_settings.stay_on_empty_workspace = true;
+        manager.update_settings(&updated_settings);
+        assert_eq!(manager.stay_on_empty_workspace(), true);
     }
 }
