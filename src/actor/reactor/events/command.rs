@@ -1,7 +1,7 @@
 use tracing::{error, info, warn};
 
 use super::super::Screen;
-use crate::actor::app::{AppThreadHandle, WindowId};
+use crate::actor::app::{AppThreadHandle, Quiet, WindowId};
 use crate::actor::reactor::transaction_manager::TransactionId;
 use crate::actor::reactor::{DisplaySelector, Reactor, WorkspaceSwitchOrigin};
 use crate::actor::stack_line::Event as StackLineEvent;
@@ -135,10 +135,7 @@ impl CommandEventHandler {
             }
         }
 
-        let _ = reactor.update_layout(false, true).unwrap_or_else(|e| {
-            warn!("Layout update failed: {}", e);
-            false
-        });
+        let _ = reactor.update_layout_or_warn(false, true);
 
         if old_keys != reactor.config_manager.config.keys {
             if let Some(wm) = &reactor.communication_manager.wm_sender {
@@ -200,6 +197,7 @@ impl CommandEventHandler {
                 raise_windows: Vec::new(),
                 focus_window: Some((window_id, None)),
                 app_handles,
+                focus_quiet: Quiet::No,
             });
             if let Err(e) = reactor.communication_manager.raise_manager_tx.try_send(request) {
                 warn!("Failed to send raise request: {}", e);
@@ -424,10 +422,7 @@ impl CommandEventHandler {
 
         reactor.handle_layout_response(response, None);
 
-        let _ = reactor.update_layout(false, false).unwrap_or_else(|e| {
-            warn!("Layout update failed: {}", e);
-            false
-        });
+        let _ = reactor.update_layout_or_warn(false, false);
     }
 
     pub fn handle_command_reactor_close_window(
