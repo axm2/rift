@@ -3,10 +3,11 @@ use std::time::Instant;
 use objc2_core_foundation::CGRect;
 use tracing::trace;
 
-use super::main_window::MainWindowTracker;
+pub mod space_activation;
+
 use super::replay::Record;
 use super::{
-    AppState, Event, FullscreenTrack, PendingSpaceChange, Screen, WindowState,
+    AppState, Event, FullscreenSpaceTrack, PendingSpaceChange, Screen, WindowState,
     WorkspaceSwitchOrigin, WorkspaceSwitchState,
 };
 use crate::actor;
@@ -17,9 +18,9 @@ use crate::actor::reactor::Reactor;
 use crate::actor::reactor::animation::AnimationManager;
 use crate::actor::{event_tap, menu_bar, raise_manager, stack_line, window_notify, wm_controller};
 use crate::common::collections::{HashMap, HashSet};
-use crate::common::config::{Config, WindowSnappingSettings};
+use crate::common::config::WindowSnappingSettings;
 use crate::layout_engine::LayoutEngine;
-use crate::sys::screen::{ScreenId, SpaceId};
+use crate::sys::screen::SpaceId;
 use crate::sys::window_server::{WindowServerId, WindowServerInfo};
 
 /// Manages window state and lifecycle
@@ -80,22 +81,18 @@ impl AppManager {
 /// Manages space and screen state
 pub struct SpaceManager {
     pub screens: Vec<Screen>,
-    pub fullscreen_by_space: HashMap<u64, FullscreenTrack>,
+    pub fullscreen_by_space: HashMap<u64, FullscreenSpaceTrack>,
     pub changing_screens: HashSet<WindowServerId>,
-    pub screen_space_by_id: HashMap<ScreenId, SpaceId>,
+    pub has_seen_display_set: bool,
 }
 
 impl SpaceManager {
-    pub fn space_for_screen(&self, screen: &Screen) -> Option<SpaceId> {
-        screen.space.or_else(|| self.screen_space_by_id.get(&screen.screen_id).copied())
-    }
-
     pub fn screen_by_space(&self, space: SpaceId) -> Option<&Screen> {
-        self.screens.iter().find(|screen| self.space_for_screen(screen) == Some(space))
+        self.screens.iter().find(|screen| screen.space == Some(space))
     }
 
     pub fn iter_known_spaces(&self) -> impl Iterator<Item = SpaceId> + '_ {
-        self.screens.iter().filter_map(|screen| self.space_for_screen(screen))
+        self.screens.iter().filter_map(|screen| screen.space)
     }
 
     pub fn first_known_space(&self) -> Option<SpaceId> { self.iter_known_spaces().next() }
@@ -189,11 +186,6 @@ pub struct RecordingManager {
     pub record: Record,
 }
 
-/// Manages configuration state
-pub struct ConfigManager {
-    pub config: Config,
-}
-
 /// Manages layout engine state
 pub struct LayoutManager {
     pub layout_engine: LayoutEngine,
@@ -219,16 +211,18 @@ impl LayoutManager {
         let mut layout_result = LayoutResult::new();
 
         for screen in screens {
-            let Some(space) = reactor.space_manager.space_for_screen(&screen) else {
+            let Some(space) = screen.space else {
                 continue;
             };
+            if !reactor.is_space_active(space) {
+                continue;
+            }
             let display_uuid_opt = if screen.display_uuid.is_empty() {
                 None
             } else {
                 Some(screen.display_uuid.clone())
             };
             let gaps = reactor
-                .config_manager
                 .config
                 .settings
                 .layout
@@ -243,9 +237,9 @@ impl LayoutManager {
                     space,
                     screen.frame.clone(),
                     &gaps,
-                    reactor.config_manager.config.settings.ui.stack_line.thickness(),
-                    reactor.config_manager.config.settings.ui.stack_line.horiz_placement,
-                    reactor.config_manager.config.settings.ui.stack_line.vert_placement,
+                    reactor.config.settings.ui.stack_line.thickness(),
+                    reactor.config.settings.ui.stack_line.horiz_placement,
+                    reactor.config.settings.ui.stack_line.vert_placement,
                     |wid| reactor.window_manager.windows.get(&wid).map(|w| w.frame_monotonic),
                 );
             layout_result.push((space, layout));
@@ -271,7 +265,7 @@ impl LayoutManager {
 
         for (space, layout) in layout_result {
             // Handle stack_line
-            if reactor.config_manager.config.settings.ui.stack_line.enabled {
+            if reactor.config.settings.ui.stack_line.enabled {
                 if let Some(tx) = &reactor.communication_manager.stack_line_tx {
                     let screen = reactor.space_manager.screen_by_space(space);
                     if let Some(screen) = screen {
@@ -280,13 +274,8 @@ impl LayoutManager {
                         } else {
                             Some(screen.display_uuid.as_str())
                         };
-                        let gaps = reactor
-                            .config_manager
-                            .config
-                            .settings
-                            .layout
-                            .gaps
-                            .effective_for_display(display_uuid);
+                        let gaps =
+                            reactor.config.settings.layout.gaps.effective_for_display(display_uuid);
                         let group_infos = reactor
                             .layout_manager
                             .layout_engine
@@ -294,15 +283,9 @@ impl LayoutManager {
                                 space,
                                 screen.frame,
                                 &gaps,
-                                reactor.config_manager.config.settings.ui.stack_line.thickness(),
-                                reactor
-                                    .config_manager
-                                    .config
-                                    .settings
-                                    .ui
-                                    .stack_line
-                                    .horiz_placement,
-                                reactor.config_manager.config.settings.ui.stack_line.vert_placement,
+                                reactor.config.settings.ui.stack_line.thickness(),
+                                reactor.config.settings.ui.stack_line.horiz_placement,
+                                reactor.config.settings.ui.stack_line.vert_placement,
                             );
 
                         let groups: Vec<crate::actor::stack_line::GroupInfo> = group_infos
@@ -346,11 +329,6 @@ impl LayoutManager {
 /// Manages window server information
 pub struct WindowServerInfoManager {
     pub window_server_info: HashMap<WindowServerId, WindowServerInfo>,
-}
-
-/// Manages main window tracking
-pub struct MainWindowTrackerManager {
-    pub main_window_tracker: MainWindowTracker,
 }
 
 /// Manages pending space changes
