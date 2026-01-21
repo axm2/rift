@@ -73,11 +73,17 @@ pub struct ReactorHandle {
 }
 
 impl ReactorHandle {
-    pub fn new(sender: Sender, queries: ReactorQueryHandle) -> Self { Self { sender, queries } }
+    pub fn new(sender: Sender, queries: ReactorQueryHandle) -> Self {
+        Self { sender, queries }
+    }
 
-    pub fn sender(&self) -> Sender { self.sender.clone() }
+    pub fn sender(&self) -> Sender {
+        self.sender.clone()
+    }
 
-    pub fn send(&self, event: Event) { self.sender.send(event) }
+    pub fn send(&self, event: Event) {
+        self.sender.send(event)
+    }
 
     pub fn try_send(
         &self,
@@ -90,7 +96,9 @@ impl ReactorHandle {
 impl std::ops::Deref for ReactorHandle {
     type Target = ReactorQueryHandle;
 
-    fn deref(&self) -> &Self::Target { &self.queries }
+    fn deref(&self) -> &Self::Target {
+        &self.queries
+    }
 }
 
 use std::path::PathBuf;
@@ -297,7 +305,9 @@ struct FullscreenSpaceTrack {
 }
 
 impl Default for FullscreenSpaceTrack {
-    fn default() -> Self { FullscreenSpaceTrack { windows: Vec::new() } }
+    fn default() -> Self {
+        FullscreenSpaceTrack { windows: Vec::new() }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -462,7 +472,9 @@ impl From<WindowInfo> for WindowState {
 }
 
 impl WindowState {
-    fn is_effectively_manageable(&self) -> bool { self.is_manageable && !self.ignore_app_rule }
+    fn is_effectively_manageable(&self) -> bool {
+        self.is_manageable && !self.ignore_app_rule
+    }
 
     fn matches_filter(&self, filter: WindowFilter) -> bool {
         match filter {
@@ -611,7 +623,9 @@ impl Reactor {
         }
     }
 
-    fn is_space_active(&self, space: SpaceId) -> bool { self.active_spaces.contains(&space) }
+    fn is_space_active(&self, space: SpaceId) -> bool {
+        self.active_spaces.contains(&space)
+    }
 
     fn iter_active_spaces(&self) -> impl Iterator<Item = SpaceId> + '_ {
         self.active_spaces.iter().copied()
@@ -2177,13 +2191,37 @@ impl Reactor {
             return;
         }
 
+        #[cfg(not(test))]
         let Some(app) = NSRunningApplication::with_process_id(pid) else {
             return;
         };
+        #[cfg(not(test))]
         let Some(bundle_id) = app.bundle_id() else {
             return;
         };
+        #[cfg(not(test))]
         let bundle_id_str = bundle_id.to_string();
+
+        #[cfg(test)]
+        let bundle_id_str = {
+            // In tests, NSRunningApplication::with_process_id may not be
+            // resolvable for synthetic pids. Allow falling back to the stored
+            // AppInfo.bundle_id from the app manager so unit tests can exercise
+            // the auto-switch logic without relying on the ObjC runtime.
+            if let Some(app) = NSRunningApplication::with_process_id(pid) {
+                if let Some(bundle_id) = app.bundle_id() {
+                    bundle_id.to_string()
+                } else if let Some(stored_app) = self.app_manager.apps.get(&pid) {
+                    stored_app.info.bundle_id.clone().unwrap_or_default()
+                } else {
+                    return;
+                }
+            } else if let Some(stored_app) = self.app_manager.apps.get(&pid) {
+                stored_app.info.bundle_id.clone().unwrap_or_default()
+            } else {
+                return;
+            }
+        };
 
         if self.config.settings.auto_focus_blacklist.contains(&bundle_id_str) {
             debug!(
@@ -2856,7 +2894,9 @@ impl Reactor {
         }
     }
 
-    fn main_window(&self) -> Option<WindowId> { self.main_window_tracker.main_window() }
+    fn main_window(&self) -> Option<WindowId> {
+        self.main_window_tracker.main_window()
+    }
 
     fn main_window_space(&self) -> Option<SpaceId> {
         // TODO: Optimize this with a cache or something.

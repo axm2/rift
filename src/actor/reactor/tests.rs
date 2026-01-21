@@ -3,8 +3,9 @@ use test_log::test;
 
 use super::testing::*;
 use super::*;
-use crate::actor::app::Request;
+use crate::actor::app::{Quiet, Request};
 use crate::layout_engine::{Direction, LayoutEngine};
+use crate::model::VirtualWorkspaceId;
 use crate::sys::app::WindowInfo;
 use crate::sys::window_server::WindowServerId;
 
@@ -487,4 +488,136 @@ fn it_retains_windows_without_server_ids_after_login_visibility_failure() {
             }
         }
     }
+}
+
+#[test]
+fn it_switches_workspace_when_active_becomes_empty() {
+    use crate::sys::screen::SpaceId;
+    use objc2_core_foundation::{CGPoint, CGRect, CGSize};
+
+    let mut apps = Apps::new();
+    let mut reactor = Reactor::new_for_test(LayoutEngine::new(
+        &crate::common::config::VirtualWorkspaceSettings::default(),
+        &crate::common::config::LayoutSettings::default(),
+        None,
+    ));
+
+    // One display / one native space
+    let full_screen = CGRect::new(CGPoint::new(0., 0.), CGSize::new(1000., 1000.));
+    reactor.handle_event(screen_params_event(
+        vec![full_screen],
+        vec![Some(SpaceId::new(1))],
+        vec![],
+    ));
+
+    // Create app 1 with one window (frontmost) and app 2 with one window (not frontmost).
+    // Use make_app_with_opts so AppInfo (bundle_id) is populated in app_manager.
+    let window_one = make_windows(1);
+    let window_two = make_windows(1);
+    reactor.handle_events(apps.make_app_with_opts(
+        1,
+        window_one,
+        Some(WindowId::new(1, 1)),
+        true, // is_frontmost
+        true, // with_ws_info
+    ));
+    reactor.handle_events(apps.make_app_with_opts(
+        2,
+        window_two,
+        Some(WindowId::new(2, 1)),
+        false, // is_frontmost
+        true,  // with_ws_info
+    ));
+    apps.simulate_until_quiet(&mut reactor);
+
+    let space = reactor.space_manager.screens[0].space.unwrap();
+    let workspaces: Vec<(VirtualWorkspaceId, String)> = reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager_mut()
+        .list_workspaces(space);
+    let workspace_one = workspaces[0].0;
+    let workspace_two = workspaces[1].0;
+    let mut space_one_windows = reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager()
+        .workspace_windows(space, workspace_one);
+    let mut space_two_windows = reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager()
+        .workspace_windows(space, workspace_two);
+
+    assert_eq!(space_one_windows.len(), 2, "expected two windows");
+    assert_eq!(space_two_windows.len(), 0, "expected zero windows");
+    // Move window two to vworkspace two
+    reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager_mut()
+        .assign_window_to_workspace(space, space_one_windows[0], workspace_two);
+    space_one_windows = reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager()
+        .workspace_windows(space, workspace_one);
+    space_two_windows = reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager()
+        .workspace_windows(space, workspace_two);
+
+    assert_eq!(space_one_windows.len(), 1, "expected one window");
+    assert_eq!(space_two_windows.len(), 1, "expected one window");
+    assert_eq!(
+        reactor.layout_manager.layout_engine.active_workspace_idx(space),
+        Some(0u64),
+        "Expected vworkspace 0 to be active"
+    );
+
+    // Simulate app termination and activation of another app (more realistic than just deactivation).
+    // Destroy the window that's currently on the active virtual workspace so the
+    // active workspace becomes empty. Use the workspace query results (variables)
+    // above to ensure we're targeting the correct window/pid.
+    let active_wid = space_one_windows[0];
+    let other_wid = space_two_windows[0];
+
+    reactor.handle_event(Event::WindowDestroyed(active_wid));
+    reactor.handle_event(Event::ApplicationThreadTerminated(active_wid.pid));
+    // Simulate the other app becoming active (not a "quiet" activation).
+    reactor.handle_event(Event::ApplicationActivated(other_wid.pid, Quiet::No));
+    // Also send the global activation event so main_window/global frontmost tracking
+    // behaves like the real system sequence (AX + workspace switching).
+    reactor.handle_event(Event::ApplicationGloballyActivated(other_wid.pid));
+    apps.simulate_until_quiet(&mut reactor);
+
+    eprintln!(
+        "TEST DEBUG: active workspace AFTER events = {:?}",
+        reactor.layout_manager.layout_engine.active_workspace_idx(space)
+    );
+    let space_one_ws_after = reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager()
+        .workspace_windows(space, workspace_one);
+    let space_two_ws_after = reactor
+        .layout_manager
+        .layout_engine
+        .virtual_workspace_manager()
+        .workspace_windows(space, workspace_two);
+    eprintln!(
+        "TEST DEBUG: workspace_one windows after = {:?}",
+        space_one_ws_after
+    );
+    eprintln!(
+        "TEST DEBUG: workspace_two windows after = {:?}",
+        space_two_ws_after
+    );
+
+    assert_eq!(
+        reactor.layout_manager.layout_engine.active_workspace_idx(space),
+        Some(1u64),
+        "Expected vworkspace 1 to be active"
+    );
 }
