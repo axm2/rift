@@ -32,9 +32,8 @@ use crate::sys::dispatch::DispatchExt;
 use crate::sys::event::current_cursor_location;
 use crate::sys::geometry::CGRectExt;
 use crate::sys::screen::{CoordinateConverter, NSScreenExt, ScreenCache, ScreenId};
-use crate::ui::render_layer_to_cgs_window;
 use crate::sys::window_server::{CapturedWindowImage, WindowServerId};
-use crate::ui::{compute_window_layout_metrics, with_disabled_actions};
+use crate::ui::{compute_window_layout_metrics, render_layer_to_cgs_window, with_disabled_actions};
 
 #[derive(Debug, Clone)]
 struct CaptureTask {
@@ -1116,86 +1115,86 @@ impl MissionControlOverlay {
         with_disabled_actions(|| {
             for (order_idx, (original_idx, _)) in visible.iter().enumerate() {
                 autoreleasepool(|_| {
-                let ws = &workspaces[*original_idx];
-                let rect = grid.rect_for(order_idx);
-                visible_ids.insert(ws.id.clone());
-                let (ws_layer, label_layer) = {
-                    let mut st = state.borrow_mut();
-                    let ws_layer = st
-                        .workspace_layers
-                        .entry(ws.id.clone())
-                        .or_insert_with(|| {
-                            let lay = CALayer::layer();
-                            parent_layer.addSublayer(&lay);
-                            lay.setContentsScale(self.scale);
-                            lay
-                        })
-                        .clone();
-                    let label_layer = st
-                        .workspace_label_layers
-                        .entry(ws.id.clone())
-                        .or_insert_with(|| {
-                            let tl = CATextLayer::layer();
-                            parent_layer.addSublayer(&tl);
-                            tl.setContentsScale(self.scale);
-                            tl
-                        })
-                        .clone();
-                    match st.workspace_label_strings.entry(ws.id.clone()) {
-                        hash_map::Entry::Occupied(mut occ) => {
-                            if occ.get_mut().update(&ws.name) {
-                                unsafe {
-                                    occ.get().apply_to(&label_layer);
+                    let ws = &workspaces[*original_idx];
+                    let rect = grid.rect_for(order_idx);
+                    visible_ids.insert(ws.id.clone());
+                    let (ws_layer, label_layer) = {
+                        let mut st = state.borrow_mut();
+                        let ws_layer = st
+                            .workspace_layers
+                            .entry(ws.id.clone())
+                            .or_insert_with(|| {
+                                let lay = CALayer::layer();
+                                parent_layer.addSublayer(&lay);
+                                lay.setContentsScale(self.scale);
+                                lay
+                            })
+                            .clone();
+                        let label_layer = st
+                            .workspace_label_layers
+                            .entry(ws.id.clone())
+                            .or_insert_with(|| {
+                                let tl = CATextLayer::layer();
+                                parent_layer.addSublayer(&tl);
+                                tl.setContentsScale(self.scale);
+                                tl
+                            })
+                            .clone();
+                        match st.workspace_label_strings.entry(ws.id.clone()) {
+                            hash_map::Entry::Occupied(mut occ) => {
+                                if occ.get_mut().update(&ws.name) {
+                                    unsafe {
+                                        occ.get().apply_to(&label_layer);
+                                    }
                                 }
                             }
-                        }
-                        hash_map::Entry::Vacant(vac) => {
-                            let cache = WorkspaceLabelText::new(&ws.name);
-                            unsafe {
-                                cache.apply_to(&label_layer);
+                            hash_map::Entry::Vacant(vac) => {
+                                let cache = WorkspaceLabelText::new(&ws.name);
+                                unsafe {
+                                    cache.apply_to(&label_layer);
+                                }
+                                vac.insert(cache);
                             }
-                            vac.insert(cache);
                         }
+                        (ws_layer, label_layer)
+                    };
+                    ws_layer.setFrame(rect);
+                    ws_layer.setCornerRadius(6.0);
+                    ws_layer.setBackgroundColor(Some(&**WORKSPACE_BACKGROUND_COLOR));
+
+                    let is_selected = Some(order_idx) == selected;
+                    if is_selected {
+                        ws_layer.setBorderColor(Some(&**SELECTED_BORDER_COLOR));
+
+                        ws_layer.setBorderWidth(3.0);
+                    } else {
+                        ws_layer.setBorderColor(Some(&**WORKSPACE_BORDER_COLOR));
+
+                        ws_layer.setBorderWidth(1.0);
                     }
-                    (ws_layer, label_layer)
-                };
-                ws_layer.setFrame(rect);
-                ws_layer.setCornerRadius(6.0);
-                ws_layer.setBackgroundColor(Some(&**WORKSPACE_BACKGROUND_COLOR));
+                    ws_layer.setZPosition(-1.0);
+                    self.draw_windows_tile(
+                        state,
+                        parent_layer,
+                        &ws.windows,
+                        rect,
+                        None,
+                        WindowLayoutKind::PreserveOriginal,
+                    );
+                    let label_height = 18.0;
+                    let label_frame = CGRect::new(
+                        CGPoint::new(rect.origin.x + 6.0, rect.origin.y + 6.0),
+                        CGSize::new((rect.size.width - 12.0).max(10.0), label_height),
+                    );
+                    label_layer.setFrame(label_frame);
+                    label_layer.setContentsScale(self.scale);
+                    label_layer.setMasksToBounds(false);
 
-                let is_selected = Some(order_idx) == selected;
-                if is_selected {
-                    ws_layer.setBorderColor(Some(&**SELECTED_BORDER_COLOR));
+                    label_layer.setFontSize(12.0);
+                    let fg = NSColor::labelColor();
+                    label_layer.setForegroundColor(Some(&fg.CGColor()));
 
-                    ws_layer.setBorderWidth(3.0);
-                } else {
-                    ws_layer.setBorderColor(Some(&**WORKSPACE_BORDER_COLOR));
-
-                    ws_layer.setBorderWidth(1.0);
-                }
-                ws_layer.setZPosition(-1.0);
-                self.draw_windows_tile(
-                    state,
-                    parent_layer,
-                    &ws.windows,
-                    rect,
-                    None,
-                    WindowLayoutKind::PreserveOriginal,
-                );
-                let label_height = 18.0;
-                let label_frame = CGRect::new(
-                    CGPoint::new(rect.origin.x + 6.0, rect.origin.y + 6.0),
-                    CGSize::new((rect.size.width - 12.0).max(10.0), label_height),
-                );
-                label_layer.setFrame(label_frame);
-                label_layer.setContentsScale(self.scale);
-                label_layer.setMasksToBounds(false);
-
-                label_layer.setFontSize(12.0);
-                let fg = NSColor::labelColor();
-                label_layer.setForegroundColor(Some(&fg.CGColor()));
-
-                label_layer.setZPosition(2.0);
+                    label_layer.setZPosition(2.0);
                 });
             }
         });
@@ -1242,78 +1241,78 @@ impl MissionControlOverlay {
         with_disabled_actions(|| {
             for idx in (0..windows.len()).rev() {
                 autoreleasepool(|_| {
-                let window = &windows[idx];
-                let rect = rects[idx];
-                let is_selected = selected_idx.map_or(false, |s| s == idx);
-                Self::draw_window_outline(rect, is_selected);
+                    let window = &windows[idx];
+                    let rect = rects[idx];
+                    let is_selected = selected_idx.map_or(false, |s| s == idx);
+                    Self::draw_window_outline(rect, is_selected);
 
-                let (layer, style_changed, had_image) = {
-                    let mut s = state.borrow_mut();
-                    let layer = s
-                        .preview_layers
-                        .entry(window.id)
-                        .or_insert_with(|| {
-                            let lay = CALayer::layer();
-                            parent_layer.addSublayer(&lay);
-                            lay.setContentsScale(self.scale);
-                            lay
-                        })
-                        .clone();
-                    let style_changed = s
-                        .preview_layer_styles
-                        .entry(window.id)
-                        .or_insert_with(Default::default)
-                        .update_selected(is_selected);
-                    let maybe_img_ptr = {
-                        let cache = s.preview_cache.read();
-                        cache
-                            .get(&window.id)
-                            .map(|img| img.as_ptr() as *mut objc2::runtime::AnyObject)
-                    };
-                    let mut had_image = false;
-                    if let Some(img_ptr) = maybe_img_ptr {
-                        unsafe {
-                            let _: () = msg_send![&**layer, setContents: img_ptr];
+                    let (layer, style_changed, had_image) = {
+                        let mut s = state.borrow_mut();
+                        let layer = s
+                            .preview_layers
+                            .entry(window.id)
+                            .or_insert_with(|| {
+                                let lay = CALayer::layer();
+                                parent_layer.addSublayer(&lay);
+                                lay.setContentsScale(self.scale);
+                                lay
+                            })
+                            .clone();
+                        let style_changed = s
+                            .preview_layer_styles
+                            .entry(window.id)
+                            .or_insert_with(Default::default)
+                            .update_selected(is_selected);
+                        let maybe_img_ptr = {
+                            let cache = s.preview_cache.read();
+                            cache
+                                .get(&window.id)
+                                .map(|img| img.as_ptr() as *mut objc2::runtime::AnyObject)
+                        };
+                        let mut had_image = false;
+                        if let Some(img_ptr) = maybe_img_ptr {
+                            unsafe {
+                                let _: () = msg_send![&**layer, setContents: img_ptr];
+                            }
+                            s.ready_previews.insert(window.id);
+                            had_image = true;
+                        } else if s.ready_previews.contains(&window.id) {
+                            had_image = true;
                         }
-                        s.ready_previews.insert(window.id);
-                        had_image = true;
-                    } else if s.ready_previews.contains(&window.id) {
-                        had_image = true;
-                    }
-                    (layer, style_changed, had_image)
-                };
-
-                layer.setFrame(rect);
-                layer.setMasksToBounds(true);
-                layer.setCornerRadius(4.0);
-                layer.setContentsScale(self.scale);
-                if style_changed {
-                    if is_selected {
-                        layer.setBorderColor(Some(&**SELECTED_BORDER_COLOR));
-                        layer.setBorderWidth(3.0);
-                        layer.setZPosition(1.0);
-                    } else {
-                        layer.setBorderColor(Some(&**WINDOW_BORDER_COLOR));
-
-                        layer.setBorderWidth(0.4);
-                        layer.setZPosition(0.0);
-                    }
-                }
-
-                if !had_image {
-                    let (tw, th) = if matches!(layout, WindowLayoutKind::Exploded) {
-                        (
-                            window.frame.size.width.max(1.0) as usize,
-                            window.frame.size.height.max(1.0) as usize,
-                        )
-                    } else {
-                        (
-                            (rect.size.width * 1.5).max(2.0) as usize,
-                            (rect.size.height * 1.5).max(2.0) as usize,
-                        )
+                        (layer, style_changed, had_image)
                     };
-                    self.schedule_capture(state, window, tw, th);
-                }
+
+                    layer.setFrame(rect);
+                    layer.setMasksToBounds(true);
+                    layer.setCornerRadius(4.0);
+                    layer.setContentsScale(self.scale);
+                    if style_changed {
+                        if is_selected {
+                            layer.setBorderColor(Some(&**SELECTED_BORDER_COLOR));
+                            layer.setBorderWidth(3.0);
+                            layer.setZPosition(1.0);
+                        } else {
+                            layer.setBorderColor(Some(&**WINDOW_BORDER_COLOR));
+
+                            layer.setBorderWidth(0.4);
+                            layer.setZPosition(0.0);
+                        }
+                    }
+
+                    if !had_image {
+                        let (tw, th) = if matches!(layout, WindowLayoutKind::Exploded) {
+                            (
+                                window.frame.size.width.max(1.0) as usize,
+                                window.frame.size.height.max(1.0) as usize,
+                            )
+                        } else {
+                            (
+                                (rect.size.width * 1.5).max(2.0) as usize,
+                                (rect.size.height * 1.5).max(2.0) as usize,
+                            )
+                        };
+                        self.schedule_capture(state, window, tw, th);
+                    }
                 });
             }
         });

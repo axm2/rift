@@ -492,8 +492,9 @@ fn it_retains_windows_without_server_ids_after_login_visibility_failure() {
 
 #[test]
 fn it_switches_workspace_when_active_becomes_empty() {
-    use crate::sys::screen::SpaceId;
     use objc2_core_foundation::{CGPoint, CGRect, CGSize};
+
+    use crate::sys::screen::SpaceId;
 
     let mut apps = Apps::new();
     let mut reactor = Reactor::new_for_test(LayoutEngine::new(

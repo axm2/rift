@@ -73,17 +73,11 @@ pub struct ReactorHandle {
 }
 
 impl ReactorHandle {
-    pub fn new(sender: Sender, queries: ReactorQueryHandle) -> Self {
-        Self { sender, queries }
-    }
+    pub fn new(sender: Sender, queries: ReactorQueryHandle) -> Self { Self { sender, queries } }
 
-    pub fn sender(&self) -> Sender {
-        self.sender.clone()
-    }
+    pub fn sender(&self) -> Sender { self.sender.clone() }
 
-    pub fn send(&self, event: Event) {
-        self.sender.send(event)
-    }
+    pub fn send(&self, event: Event) { self.sender.send(event) }
 
     pub fn try_send(
         &self,
@@ -96,9 +90,7 @@ impl ReactorHandle {
 impl std::ops::Deref for ReactorHandle {
     type Target = ReactorQueryHandle;
 
-    fn deref(&self) -> &Self::Target {
-        &self.queries
-    }
+    fn deref(&self) -> &Self::Target { &self.queries }
 }
 
 use std::path::PathBuf;
@@ -305,9 +297,7 @@ struct FullscreenSpaceTrack {
 }
 
 impl Default for FullscreenSpaceTrack {
-    fn default() -> Self {
-        FullscreenSpaceTrack { windows: Vec::new() }
-    }
+    fn default() -> Self { FullscreenSpaceTrack { windows: Vec::new() } }
 }
 
 #[derive(Debug, Clone)]
@@ -472,9 +462,7 @@ impl From<WindowInfo> for WindowState {
 }
 
 impl WindowState {
-    fn is_effectively_manageable(&self) -> bool {
-        self.is_manageable && !self.ignore_app_rule
-    }
+    fn is_effectively_manageable(&self) -> bool { self.is_manageable && !self.ignore_app_rule }
 
     fn matches_filter(&self, filter: WindowFilter) -> bool {
         match filter {
@@ -623,9 +611,7 @@ impl Reactor {
         }
     }
 
-    fn is_space_active(&self, space: SpaceId) -> bool {
-        self.active_spaces.contains(&space)
-    }
+    fn is_space_active(&self, space: SpaceId) -> bool { self.active_spaces.contains(&space) }
 
     fn iter_active_spaces(&self) -> impl Iterator<Item = SpaceId> + '_ {
         self.active_spaces.iter().copied()
@@ -2894,9 +2880,7 @@ impl Reactor {
         }
     }
 
-    fn main_window(&self) -> Option<WindowId> {
-        self.main_window_tracker.main_window()
-    }
+    fn main_window(&self) -> Option<WindowId> { self.main_window_tracker.main_window() }
 
     fn main_window_space(&self) -> Option<SpaceId> {
         // TODO: Optimize this with a cache or something.
