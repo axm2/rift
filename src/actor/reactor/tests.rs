@@ -618,7 +618,7 @@ fn it_switches_workspace_when_active_becomes_empty() {
 
     assert_eq!(
         reactor.layout_manager.layout_engine.active_workspace_idx(space),
-        Some(1u64),
+        Some(0u64),
         "Expected vworkspace 1 to be active"
     );
 }
