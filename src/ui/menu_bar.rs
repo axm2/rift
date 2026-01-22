@@ -24,8 +24,8 @@ use crate::common::config::{
 };
 use crate::model::VirtualWorkspaceId;
 use crate::model::server::{WindowData, WorkspaceData};
-use crate::ui::compute_window_layout_metrics;
 use crate::sys::screen::SpaceId;
+use crate::ui::compute_window_layout_metrics;
 
 const CELL_WIDTH: f64 = 20.0;
 const CELL_HEIGHT: f64 = 15.0;
@@ -339,8 +339,13 @@ fn build_layout(
         };
 
         let windows = if input.show_windows && !workspace.windows.is_empty() {
-            let layout =
-                compute_window_layout_metrics(&workspace.windows, bg_rect, CONTENT_INSET, 1.0, None);
+            let layout = compute_window_layout_metrics(
+                &workspace.windows,
+                bg_rect,
+                CONTENT_INSET,
+                1.0,
+                None,
+            );
             if let Some(layout) = layout {
                 const MIN_TILE_SIZE: f64 = 2.0;
                 const WIN_GAP: f64 = 0.75;

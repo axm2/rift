@@ -2177,13 +2177,37 @@ impl Reactor {
             return;
         }
 
+        #[cfg(not(test))]
         let Some(app) = NSRunningApplication::with_process_id(pid) else {
             return;
         };
+        #[cfg(not(test))]
         let Some(bundle_id) = app.bundle_id() else {
             return;
         };
+        #[cfg(not(test))]
         let bundle_id_str = bundle_id.to_string();
+
+        #[cfg(test)]
+        let bundle_id_str = {
+            // In tests, NSRunningApplication::with_process_id may not be
+            // resolvable for synthetic pids. Allow falling back to the stored
+            // AppInfo.bundle_id from the app manager so unit tests can exercise
+            // the auto-switch logic without relying on the ObjC runtime.
+            if let Some(app) = NSRunningApplication::with_process_id(pid) {
+                if let Some(bundle_id) = app.bundle_id() {
+                    bundle_id.to_string()
+                } else if let Some(stored_app) = self.app_manager.apps.get(&pid) {
+                    stored_app.info.bundle_id.clone().unwrap_or_default()
+                } else {
+                    return;
+                }
+            } else if let Some(stored_app) = self.app_manager.apps.get(&pid) {
+                stored_app.info.bundle_id.clone().unwrap_or_default()
+            } else {
+                return;
+            }
+        };
 
         if self.config.settings.auto_focus_blacklist.contains(&bundle_id_str) {
             debug!(

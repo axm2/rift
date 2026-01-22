@@ -27,6 +27,11 @@ incremental = false
 lto = "thin"
 strip = true
 
+[profile.test]
+opt-level = 0
+debug = 2
+lto = false
+
 [lib]
 doctest = false
 

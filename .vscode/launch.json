@@ -1,0 +1,65 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Debug unit tests in library 'rift_wm'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test"
+                ]
+            }
+        },
+        {
+            "name": "Debug executable 'rift'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=rift"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'rift'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=rift"
+                ]
+            }
+        },
+        {
+            "name": "Debug executable 'rift-cli'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=rift-cli"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in executable 'rift-cli'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=rift-cli"
+                ]
+            }
+        }
+    ]
+}
